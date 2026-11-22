@@ -9,9 +9,13 @@
 - **Relational Modeling:** Entity-Relationship (ER) design, composite keys, constraints (`CHECK`, `UNIQUE`, `FOREIGN KEY ON DELETE RESTRICT/CASCADE`).
 - **Formal Normalization:** Complete academic progression from Unnormalized Form (UNF) through **1NF, 2NF, 3NF, and BCNF**.
 - **Transactions & Concurrency:** ACID-compliant checkout routines with row-level locking (`FOR UPDATE`) preventing negative stock and lost updates.
+- **Event-Sourced Inventory Ledger:** Immutable double-entry ledger (`+Restock`, `-Sale`, `-Damage`, `+Return`, `+Transfer`) maintaining mathematical zero-discrepancy reconciliation.
+- **CSV Bulk Importer:** Enterprise batch intake validating row-by-row with single-transaction ACID rollback protection on errors.
+- **Live Barcode Intake Scanner:** EAN/UPC physical intake with automated global registry lookup (Open Food Facts API fallback).
 - **Triggers & Auditing:** Automated trigger-driven event logging (`inventory_audit_log`) and stock validation.
-- **Views & Optimization:** Pre-computed views (`vw_low_stock_alerts`, `vw_inventory_valuation`) and B-Tree indexes for fast lookups.
-- **Interactive UI Dashboard:** Modern, responsive SaaS interface with live charts, order creation, warehouse transfer modals, and an in-browser **Viva SQL Sandbox**.
+- **Views & Optimization:** Pre-computed views (`vw_low_stock_alerts`, `vw_inventory_calculated_stock`, `vw_inventory_valuation`) and B-Tree indexes for fast lookups.
+- **Interactive UI Dashboard:** Modern, responsive SaaS interface with live charts, order creation, warehouse transfer modals, barcode scanner modal, CSV uploader, and an in-browser **Viva SQL Sandbox**.
+
 
 ---
 
@@ -93,6 +97,10 @@ DBMS Project/
 ---
 
 ## 🎯 Key Viva Demonstration Highlights
-1. **Trigger Demo:** Place an order from the UI or run an update on `inventory`. Instantly switch to the **Trigger Audit Logs** tab to show the external examiner the newly created audit row with `OLD_QTY`, `NEW_QTY`, and delta.
-2. **ACID Demo:** Attempt to place an order for 500 units when only 10 are available. Show how the backend catches the shortage, aborts the operation, and executes `ROLLBACK`.
-3. **Correlated Subquery Demo:** Open the **Viva SQL Sandbox** tab and click Query 3 to demonstrate products whose price exceeds their category's average price in real-time.
+1. **Event-Sourced Ledger vs Materialized Stock:** Switch to the **Event Movement Ledger** tab in the UI. Show the external examiner how every order deduction, restock, transfer, damage, and return is stored as an immutable signed delta. Point to the **Zero Discrepancy Verified** badge proving that `SUM(delta_quantity) = materialized_stock` across all 370+ warehouse stock points!
+2. **CSV Bulk Upload with ACID Rollback:** Click **CSV Bulk Upload** in the navigation bar. Paste a row with a negative quantity (`-15`) or an invalid warehouse code (`WH-UNKNOWN`). Show how the backend intercepts the invalid row, rejects the entire upload batch, returns a detailed error report, and maintains database consistency without committing any partial changes.
+3. **Live Barcode Scanner & Intake:** Click **Barcode Intake** and click any of the sample quick-scan buttons (e.g. Dell Server, Sony XM5, or Nutella). Show how existing products immediately pull live warehouse inventory, while new external codes auto-populate product names and categories from the global product registry.
+4. **Trigger Demo:** Place an order from the UI or run an update on `inventory`. Instantly switch to the **Trigger Audit Logs** tab to show the external examiner the newly created audit row with `OLD_QTY`, `NEW_QTY`, and delta.
+5. **ACID Demo:** Attempt to place an order for 5,000 units when only 10 are available. Show how the backend catches the shortage, aborts the operation, and executes `ROLLBACK`.
+6. **Correlated Subquery Demo:** Open the **Viva SQL Sandbox** tab and click Query 3 to demonstrate products whose price exceeds their category's average price in real-time.
+

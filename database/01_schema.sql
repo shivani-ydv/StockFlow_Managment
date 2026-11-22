@@ -46,6 +46,7 @@ CREATE TABLE suppliers (
 CREATE TABLE products (
     product_id INT AUTO_INCREMENT PRIMARY KEY,
     sku VARCHAR(50) NOT NULL UNIQUE,
+    barcode VARCHAR(100) UNIQUE,
     product_name VARCHAR(150) NOT NULL,
     category_id INT NOT NULL,
     supplier_id INT NOT NULL,
@@ -214,6 +215,29 @@ CREATE TABLE inventory_audit_log (
     CONSTRAINT fk_audit_product FOREIGN KEY (product_id) 
         REFERENCES products(product_id) ON DELETE CASCADE,
     CONSTRAINT fk_audit_warehouse FOREIGN KEY (warehouse_id) 
+        REFERENCES warehouses(warehouse_id) ON DELETE RESTRICT
+) ENGINE=InnoDB;
+
+-- ----------------------------------------------------------------------------
+-- Table 12: INVENTORY_LEDGER (Event Movement Ledger)
+-- Purpose: Double-entry movement log (+Restock, -Sale, -Damage, +Return).
+-- Demonstrates: Event Sourcing, race condition prevention, true calculated stock.
+-- ----------------------------------------------------------------------------
+CREATE TABLE inventory_ledger (
+    ledger_id INT AUTO_INCREMENT PRIMARY KEY,
+    product_id INT NOT NULL,
+    warehouse_id INT NOT NULL,
+    movement_type ENUM('INITIAL_COUNT', 'RESTOCK', 'SALE', 'DAMAGE', 'RETURN', 'TRANSFER_IN', 'TRANSFER_OUT', 'CSV_IMPORT', 'BARCODE_SCAN') NOT NULL,
+    delta_quantity INT NOT NULL,
+    balance_after INT NOT NULL,
+    reference_type VARCHAR(50) DEFAULT 'MANUAL',
+    reference_id VARCHAR(80),
+    notes TEXT,
+    recorded_by VARCHAR(80) DEFAULT 'SYSTEM',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_ledger_product FOREIGN KEY (product_id) 
+        REFERENCES products(product_id) ON DELETE CASCADE,
+    CONSTRAINT fk_ledger_warehouse FOREIGN KEY (warehouse_id) 
         REFERENCES warehouses(warehouse_id) ON DELETE RESTRICT
 ) ENGINE=InnoDB;
 

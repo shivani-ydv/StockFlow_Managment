@@ -115,3 +115,28 @@ LEFT JOIN shipments s ON o.order_id = s.order_id
 GROUP BY 
     o.order_id, o.order_number, o.order_date, o.status, o.total_amount,
     c.full_name, c.email, c.city, s.carrier, s.tracking_number, s.shipping_status, s.shipped_at;
+
+-- ----------------------------------------------------------------------------
+-- View 5: vw_inventory_calculated_stock (Event Ledger Calculation)
+-- Purpose: Dynamically calculates stock levels directly from immutable ledger movements
+--          to prevent race conditions and prove data integrity.
+-- Demonstrates: Event Sourcing aggregation, GROUP BY, SUM(), MAX().
+-- ----------------------------------------------------------------------------
+CREATE OR REPLACE VIEW vw_inventory_calculated_stock AS
+SELECT 
+    l.product_id,
+    l.warehouse_id,
+    p.product_name,
+    p.sku,
+    p.barcode,
+    w.warehouse_name,
+    w.location_city,
+    SUM(l.delta_quantity) AS calculated_stock,
+    COUNT(l.ledger_id) AS total_movements_count,
+    MAX(l.created_at) AS last_movement_at
+FROM inventory_ledger l
+JOIN products p ON l.product_id = p.product_id
+JOIN warehouses w ON l.warehouse_id = w.warehouse_id
+GROUP BY l.product_id, l.warehouse_id, p.product_name, p.sku, p.barcode, w.warehouse_name, w.location_city;
+
+
