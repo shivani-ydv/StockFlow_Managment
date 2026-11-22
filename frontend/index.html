@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StockFlow — Smart Inventory & Order Management System</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            900: '#1e3a8a',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .tab-btn.active {
+            border-bottom: 2px solid #2563eb;
+            color: #2563eb;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col">
+
+    <!-- Top Navigation Header -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white text-xl shadow-md">
+                        <i class="fa-solid fa-boxes-stacked"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center space-x-2">
+                            <h1 class="text-xl font-bold text-slate-900 tracking-tight">StockFlow</h1>
+                            <span class="text-xs bg-blue-100 text-blue-700 font-semibold px-2 py-0.5 rounded-full">DBMS Edition</span>
+                        </div>
+                        <p class="text-xs text-slate-500">Smart Inventory & Order Management System</p>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex items-center space-x-3">
+                    <button onclick="openModal('orderModal')" class="inline-flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-3.5 py-2 rounded-lg shadow-sm transition">
+                        <i class="fa-solid fa-cart-plus text-xs"></i>
+                        <span>New Order</span>
+                    </button>
+                    <button onclick="openModal('transferModal')" class="inline-flex items-center space-x-2 bg-slate-800 hover:bg-slate-900 text-white text-sm font-medium px-3.5 py-2 rounded-lg shadow-sm transition">
+                        <i class="fa-solid fa-arrow-right-arrow-left text-xs"></i>
+                        <span>Transfer Stock</span>
+                    </button>
+                    <button onclick="openModal('restockModal')" class="inline-flex items-center space-x-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium px-3.5 py-2 rounded-lg shadow-sm transition">
+                        <i class="fa-solid fa-dolly text-xs"></i>
+                        <span>Restock</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tab Navigation Bar -->
+            <nav class="flex space-x-8 text-sm font-medium text-slate-600 border-t border-slate-100 mt-1">
+                <button onclick="switchTab('dashboard')" class="tab-btn active py-3 px-1 inline-flex items-center space-x-2" id="tab-dashboard-btn">
+                    <i class="fa-solid fa-chart-pie"></i>
+                    <span>Dashboard</span>
+                </button>
+                <button onclick="switchTab('inventory')" class="tab-btn py-3 px-1 inline-flex items-center space-x-2" id="tab-inventory-btn">
+                    <i class="fa-solid fa-warehouse"></i>
+                    <span>Inventory</span>
+                </button>
+                <button onclick="switchTab('orders')" class="tab-btn py-3 px-1 inline-flex items-center space-x-2" id="tab-orders-btn">
+                    <i class="fa-solid fa-receipt"></i>
+                    <span>Orders</span>
+                </button>
+                <button onclick="switchTab('audits')" class="tab-btn py-3 px-1 inline-flex items-center space-x-2" id="tab-audits-btn">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    <span>Trigger Audit Logs</span>
+                </button>
+                <button onclick="switchTab('viva')" class="tab-btn py-3 px-1 inline-flex items-center space-x-2 text-indigo-600" id="tab-viva-btn">
+                    <i class="fa-solid fa-terminal"></i>
+                    <span>Viva SQL Sandbox</span>
+                </button>
+                <button onclick="switchTab('concepts')" class="tab-btn py-3 px-1 inline-flex items-center space-x-2 text-emerald-600" id="tab-concepts-btn">
+                    <i class="fa-solid fa-graduation-cap"></i>
+                    <span>DBMS Concepts</span>
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full">
+
+        <!-- TAB 1: DASHBOARD -->
+        <section id="tab-dashboard" class="space-y-6">
+            <!-- Critical Low Stock Banner (Conditionally Shown) -->
+            <div id="lowStockBanner" class="hidden bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-lg shadow-sm">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <i class="fa-solid fa-triangle-exclamation text-amber-500 text-lg"></i>
+                        <div>
+                            <h4 class="text-sm font-semibold text-amber-900" id="lowStockAlertTitle">Stock Alert Notice</h4>
+                            <p class="text-xs text-amber-700" id="lowStockAlertDesc">Several SKUs are at or below reorder threshold.</p>
+                        </div>
+                    </div>
+                    <button onclick="switchTab('inventory')" class="text-xs bg-amber-600 hover:bg-amber-700 text-white font-medium px-3 py-1.5 rounded shadow-sm">
+                        Inspect Inventory
+                    </button>
+                </div>
+            </div>
+
+            <!-- KPI Metric Cards Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+                <!-- Card 1 -->
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Products</p>
+                        <h3 class="text-2xl font-bold text-slate-900 mt-1" id="statProducts">-</h3>
+                        <p class="text-xs text-emerald-600 font-medium mt-1"><i class="fa-solid fa-check"></i> 5 Active Categories</p>
+                    </div>
+                    <div class="w-12 h-12 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-cube"></i>
+                    </div>
+                </div>
+
+                <!-- Card 2 -->
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Stock Units</p>
+                        <h3 class="text-2xl font-bold text-slate-900 mt-1" id="statUnits">-</h3>
+                        <p class="text-xs text-slate-500 font-medium mt-1">Across <span id="statWarehouses" class="font-bold text-slate-700">4</span> Warehouses</p>
+                    </div>
+                    <div class="w-12 h-12 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-layer-group"></i>
+                    </div>
+                </div>
+
+                <!-- Card 3 -->
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Inventory Valuation</p>
+                        <h3 class="text-2xl font-bold text-slate-900 mt-1" id="statValuation">-</h3>
+                        <p class="text-xs text-slate-500 font-medium mt-1">Cost: ₹<span id="statCostVal">-</span></p>
+                    </div>
+                    <div class="w-12 h-12 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-indian-rupee-sign"></i>
+                    </div>
+                </div>
+
+                <!-- Card 4 -->
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Low Stock SKUs</p>
+                        <h3 class="text-2xl font-bold text-rose-600 mt-1" id="statLowStock">-</h3>
+                        <p class="text-xs text-rose-500 font-medium mt-1"><i class="fa-solid fa-bell"></i> Action Recommended</p>
+                    </div>
+                    <div class="w-12 h-12 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Section (Doughnut & Bar) -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Chart 1: Category Breakdown -->
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-sm font-bold text-slate-900">Inventory Units by Category</h3>
+                        <span class="text-xs text-slate-400">Live Aggregate</span>
+                    </div>
+                    <div class="h-64 flex items-center justify-center">
+                        <canvas id="categoryChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Chart 2: Warehouse Distribution -->
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-sm font-bold text-slate-900">Stock Distribution by Warehouse Hub</h3>
+                        <span class="text-xs text-slate-400">Multi-Warehouse</span>
+                    </div>
+                    <div class="h-64 flex items-center justify-center">
+                        <canvas id="warehouseChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Orders Preview Table -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/50">
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-900">Recent Customer Orders</h3>
+                        <p class="text-xs text-slate-500">Atomic transactions placed in system</p>
+                    </div>
+                    <button onclick="switchTab('orders')" class="text-xs text-blue-600 font-semibold hover:underline">
+                        View All Orders &rarr;
+                    </button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-left text-xs">
+                        <thead class="bg-slate-50 text-slate-500 uppercase font-medium border-b border-slate-200">
+                            <tr>
+                                <th class="px-4 py-3">Order #</th>
+                                <th class="px-4 py-3">Customer</th>
+                                <th class="px-4 py-3">City</th>
+                                <th class="px-4 py-3">Amount</th>
+                                <th class="px-4 py-3">Status</th>
+                                <th class="px-4 py-3">Tracking</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dashboardOrdersTable" class="divide-y divide-slate-100 text-slate-700">
+                            <!-- Injected by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 2: INVENTORY -->
+        <section id="tab-inventory" class="hidden space-y-6">
+            <!-- Filter Bar -->
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4 justify-between items-center">
+                <div class="w-full md:w-1/3 relative">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-slate-400 text-xs"></i>
+                    <input type="text" id="invSearchInput" onkeyup="loadInventory()" placeholder="Search product name, SKU, or city..." class="w-full pl-9 pr-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500">
+                </div>
+                <div class="flex flex-wrap gap-3 w-full md:w-auto">
+                    <select id="invWarehouseFilter" onchange="loadInventory()" class="text-xs border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-blue-500">
+                        <option value="">All Warehouses</option>
+                    </select>
+                    <select id="invCategoryFilter" onchange="loadInventory()" class="text-xs border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-blue-500">
+                        <option value="">All Categories</option>
+                    </select>
+                    <button onclick="loadInventory()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-lg font-medium">
+                        <i class="fa-solid fa-rotate-right"></i> Refresh
+                    </button>
+                </div>
+            </div>
+
+            <!-- Inventory Items Table -->
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-left text-xs">
+                        <thead class="bg-slate-50 text-slate-500 uppercase font-medium border-b border-slate-200">
+                            <tr>
+                                <th class="px-4 py-3">SKU</th>
+                                <th class="px-4 py-3">Product Name</th>
+                                <th class="px-4 py-3">Category</th>
+                                <th class="px-4 py-3">Warehouse Hub</th>
+                                <th class="px-4 py-3">Stock Level</th>
+                                <th class="px-4 py-3">Reorder Point</th>
+                                <th class="px-4 py-3">Unit Price</th>
+                                <th class="px-4 py-3">Status</th>
+                                <th class="px-4 py-3">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inventoryTableBody" class="divide-y divide-slate-100 text-slate-700">
+                            <!-- Injected by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: ORDERS -->
+        <section id="tab-orders" class="hidden space-y-6">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-900">Customer Purchase Orders</h2>
+                    <p class="text-xs text-slate-500">ACID Transactions with Stock Deduction & GST Calculation</p>
+                </div>
+                <button onclick="openModal('orderModal')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium px-4 py-2 rounded-lg shadow-sm">
+                    <i class="fa-solid fa-plus mr-1"></i> Place New Order
+                </button>
+            </div>
+
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-left text-xs">
+                        <thead class="bg-slate-50 text-slate-500 uppercase font-medium border-b border-slate-200">
+                            <tr>
+                                <th class="px-4 py-3">Order Number</th>
+                                <th class="px-4 py-3">Customer</th>
+                                <th class="px-4 py-3">Date</th>
+                                <th class="px-4 py-3">Items</th>
+                                <th class="px-4 py-3">Total Amount</th>
+                                <th class="px-4 py-3">Order Status</th>
+                                <th class="px-4 py-3">Payment</th>
+                                <th class="px-4 py-3">Shipment Carrier</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ordersTableBody" class="divide-y divide-slate-100 text-slate-700">
+                            <!-- Injected by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 4: AUDIT LOGS -->
+        <section id="tab-audits" class="hidden space-y-6">
+            <div>
+                <h2 class="text-lg font-bold text-slate-900">Database Trigger Audit Logs</h2>
+                <p class="text-xs text-slate-500">Every stock modification automatically captured by MySQL/SQLite triggers into <code class="bg-slate-100 px-1 py-0.5 rounded text-indigo-600 font-mono">inventory_audit_log</code></p>
+            </div>
+
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-left text-xs font-mono">
+                        <thead class="bg-slate-50 text-slate-500 uppercase font-sans font-medium border-b border-slate-200">
+                            <tr>
+                                <th class="px-4 py-3">Log ID</th>
+                                <th class="px-4 py-3">Timestamp</th>
+                                <th class="px-4 py-3">Product Name</th>
+                                <th class="px-4 py-3">Warehouse</th>
+                                <th class="px-4 py-3">Change Type</th>
+                                <th class="px-4 py-3">Old Qty</th>
+                                <th class="px-4 py-3">New Qty</th>
+                                <th class="px-4 py-3">Delta</th>
+                                <th class="px-4 py-3">Auditor</th>
+                            </tr>
+                        </thead>
+                        <tbody id="auditLogsTableBody" class="divide-y divide-slate-100 text-slate-700">
+                            <!-- Injected by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 5: VIVA SQL SANDBOX -->
+        <section id="tab-viva" class="hidden space-y-6">
+            <div class="bg-gradient-to-r from-indigo-900 to-slate-900 text-white p-6 rounded-xl shadow-md">
+                <div class="flex items-center space-x-3 mb-2">
+                    <i class="fa-solid fa-terminal text-indigo-400 text-xl"></i>
+                    <h2 class="text-lg font-bold">Academic Viva SQL Sandbox & Execution Benchmarking</h2>
+                </div>
+                <p class="text-xs text-indigo-200">
+                    Live database query console for project viva. Click any pre-configured college exam query below to execute, inspect JOIN mechanics, and observe real-time query runtimes.
+                </p>
+            </div>
+
+            <!-- Quick Viva Query Presets Grid -->
+            <div>
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">Pre-Configured Viva Test Queries</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <button onclick="setVivaQuery(1)" class="text-left bg-white p-3 rounded-lg border border-slate-200 hover:border-indigo-400 hover:shadow-sm transition text-xs">
+                        <div class="font-bold text-slate-800">1. 4-Table INNER JOIN</div>
+                        <div class="text-slate-500 mt-0.5">Order items with customer, product & warehouse</div>
+                    </button>
+                    <button onclick="setVivaQuery(2)" class="text-left bg-white p-3 rounded-lg border border-slate-200 hover:border-indigo-400 hover:shadow-sm transition text-xs">
+                        <div class="font-bold text-slate-800">2. LEFT OUTER JOIN</div>
+                        <div class="text-slate-500 mt-0.5">Products never ordered by any customer</div>
+                    </button>
+                    <button onclick="setVivaQuery(3)" class="text-left bg-white p-3 rounded-lg border border-slate-200 hover:border-indigo-400 hover:shadow-sm transition text-xs">
+                        <div class="font-bold text-slate-800">3. Correlated Subquery</div>
+                        <div class="text-slate-500 mt-0.5">Products priced higher than category avg</div>
+                    </button>
+                    <button onclick="setVivaQuery(4)" class="text-left bg-white p-3 rounded-lg border border-slate-200 hover:border-indigo-400 hover:shadow-sm transition text-xs">
+                        <div class="font-bold text-slate-800">4. GROUP BY & HAVING</div>
+                        <div class="text-slate-500 mt-0.5">Suppliers whose avg price > ₹20,000</div>
+                    </button>
+                    <button onclick="setVivaQuery(5)" class="text-left bg-white p-3 rounded-lg border border-slate-200 hover:border-indigo-400 hover:shadow-sm transition text-xs">
+                        <div class="font-bold text-slate-800">5. View: Low Stock Alerts</div>
+                        <div class="text-slate-500 mt-0.5">Direct query on vw_low_stock_alerts</div>
+                    </button>
+                    <button onclick="setVivaQuery(6)" class="text-left bg-white p-3 rounded-lg border border-slate-200 hover:border-indigo-400 hover:shadow-sm transition text-xs">
+                        <div class="font-bold text-slate-800">6. View: Inventory Valuation</div>
+                        <div class="text-slate-500 mt-0.5">Cost, retail & profit margin summary</div>
+                    </button>
+                    <button onclick="setVivaQuery(7)" class="text-left bg-white p-3 rounded-lg border border-slate-200 hover:border-indigo-400 hover:shadow-sm transition text-xs">
+                        <div class="font-bold text-slate-800">7. Subquery with EXISTS</div>
+                        <div class="text-slate-500 mt-0.5">Warehouses with out-of-stock items</div>
+                    </button>
+                    <button onclick="setVivaQuery(8)" class="text-left bg-white p-3 rounded-lg border border-slate-200 hover:border-indigo-400 hover:shadow-sm transition text-xs">
+                        <div class="font-bold text-slate-800">8. View: Customer Summary</div>
+                        <div class="text-slate-500 mt-0.5">Customer lifetime orders & spending</div>
+                    </button>
+                </div>
+            </div>
+
+            <!-- SQL Query Input & Execution Form -->
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
+                <div class="flex justify-between items-center">
+                    <label class="text-xs font-bold text-slate-700 uppercase">SQL Query Editor</label>
+                    <span class="text-xs text-slate-400 font-mono">SQLite / MySQL Syntax</span>
+                </div>
+                <textarea id="sqlQueryInput" rows="5" class="w-full font-mono text-xs p-3 border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500 bg-slate-900 text-emerald-400" placeholder="SELECT * FROM products;"></textarea>
+                <div class="flex justify-between items-center">
+                    <div id="queryStatusNotice" class="text-xs font-mono text-slate-500"></div>
+                    <button onclick="runCustomQuery()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-4 py-2 rounded-lg shadow-sm">
+                        <i class="fa-solid fa-play mr-1"></i> Execute Query
+                    </button>
+                </div>
+            </div>
+
+            <!-- Query Output Table -->
+            <div id="queryOutputContainer" class="hidden bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="p-3 bg-slate-50 border-b border-slate-200 flex justify-between items-center text-xs">
+                    <span class="font-bold text-slate-700">Execution Results</span>
+                    <span id="queryStatsPill" class="bg-indigo-100 text-indigo-700 font-mono px-2 py-0.5 rounded text-[11px]">0 rows</span>
+                </div>
+                <div class="overflow-x-auto max-h-96">
+                    <table class="min-w-full text-left text-xs font-mono">
+                        <thead id="queryOutputHeader" class="bg-slate-100 text-slate-700 uppercase sticky top-0 border-b border-slate-200">
+                        </thead>
+                        <tbody id="queryOutputBody" class="divide-y divide-slate-100 text-slate-800">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 6: DBMS CONCEPTS EXPLAINED -->
+        <section id="tab-concepts" class="hidden space-y-6">
+            <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-6">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-900">Academic DBMS Curriculum Concepts</h2>
+                    <p class="text-xs text-slate-500">Quick-reference guide for external examiners and viva evaluations.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Concept 1 -->
+                    <div class="border border-slate-200 rounded-lg p-4 bg-slate-50/50">
+                        <div class="flex items-center space-x-2 text-blue-600 mb-2">
+                            <i class="fa-solid fa-diagram-project"></i>
+                            <h4 class="font-bold text-sm text-slate-900">1. Normalization (1NF to 3NF)</h4>
+                        </div>
+                        <ul class="text-xs text-slate-600 space-y-1.5 list-disc pl-4">
+                            <li><strong>1NF:</strong> Multi-valued attributes eliminated. Atomic columns for each inventory cell.</li>
+                            <li><strong>2NF:</strong> Removed partial dependencies by decomposing compound order lines into <code>orders</code> and <code>order_items</code>.</li>
+                            <li><strong>3NF:</strong> Removed transitive dependencies: customer addresses moved to <code>customers</code> rather than living in <code>orders</code>.</li>
+                        </ul>
+                    </div>
+
+                    <!-- Concept 2 -->
+                    <div class="border border-slate-200 rounded-lg p-4 bg-slate-50/50">
+                        <div class="flex items-center space-x-2 text-indigo-600 mb-2">
+                            <i class="fa-solid fa-lock"></i>
+                            <h4 class="font-bold text-sm text-slate-900">2. ACID Compliance in Orders</h4>
+                        </div>
+                        <ul class="text-xs text-slate-600 space-y-1.5 list-disc pl-4">
+                            <li><strong>Atomicity:</strong> Order creation and inventory deduction succeed together or both rollback.</li>
+                            <li><strong>Consistency:</strong> CHECK constraints prevent negative inventory (<code>quantity_on_hand >= 0</code>).</li>
+                            <li><strong>Isolation:</strong> Row-level locks (<code>FOR UPDATE</code>) prevent race conditions between concurrent orders.</li>
+                            <li><strong>Durability:</strong> Changes are written to persistent disk storage on commit.</li>
+                        </ul>
+                    </div>
+
+                    <!-- Concept 3 -->
+                    <div class="border border-slate-200 rounded-lg p-4 bg-slate-50/50">
+                        <div class="flex items-center space-x-2 text-emerald-600 mb-2">
+                            <i class="fa-solid fa-bolt"></i>
+                            <h4 class="font-bold text-sm text-slate-900">3. Automated Triggers & Auditing</h4>
+                        </div>
+                        <ul class="text-xs text-slate-600 space-y-1.5 list-disc pl-4">
+                            <li><code>trg_audit_inventory_update</code>: Fires <code>AFTER UPDATE</code> on inventory, recording old/new values.</li>
+                            <li><code>trg_prevent_negative_stock</code>: Fires <code>BEFORE UPDATE</code>, aborting updates if quantity drops below zero.</li>
+                            <li><code>trg_update_order_totals</code>: Calculates 18% GST and rolls up line items into the order header.</li>
+                        </ul>
+                    </div>
+
+                    <!-- Concept 4 -->
+                    <div class="border border-slate-200 rounded-lg p-4 bg-slate-50/50">
+                        <div class="flex items-center space-x-2 text-amber-600 mb-2">
+                            <i class="fa-solid fa-glasses"></i>
+                            <h4 class="font-bold text-sm text-slate-900">4. Views & Query Optimization</h4>
+                        </div>
+                        <ul class="text-xs text-slate-600 space-y-1.5 list-disc pl-4">
+                            <li><code>vw_low_stock_alerts</code>: Simplifies complex JOIN logic across 4 tables for inventory managers.</li>
+                            <li><code>vw_inventory_valuation</code>: Pre-aggregated holding asset report.</li>
+                            <li><strong>B-Tree Indexes:</strong> Created on <code>(product_id, warehouse_id)</code> and <code>(customer_id, order_date)</code> to minimize full-table scans.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- MODAL: PLACE NEW ORDER -->
+    <div id="orderModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200">
+            <div class="flex justify-between items-center mb-4 pb-3 border-b border-slate-100">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-cart-plus text-blue-600 text-lg"></i>
+                    <h3 class="font-bold text-slate-900">Place Purchase Order</h3>
+                </div>
+                <button onclick="closeModal('orderModal')" class="text-slate-400 hover:text-slate-600 text-lg">&times;</button>
+            </div>
+            <form id="orderForm" onsubmit="submitOrder(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Customer</label>
+                    <select id="orderCustomerSelect" required class="w-full text-xs border border-slate-200 rounded-lg p-2.5 bg-white focus:outline-none focus:border-blue-500"></select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Product</label>
+                    <select id="orderProductSelect" onchange="updateProductPricePreview()" required class="w-full text-xs border border-slate-200 rounded-lg p-2.5 bg-white focus:outline-none focus:border-blue-500"></select>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Fulfillment Warehouse</label>
+                        <select id="orderWarehouseSelect" required class="w-full text-xs border border-slate-200 rounded-lg p-2.5 bg-white focus:outline-none focus:border-blue-500"></select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Quantity</label>
+                        <input type="number" id="orderQuantityInput" min="1" value="1" required class="w-full text-xs border border-slate-200 rounded-lg p-2.5 focus:outline-none focus:border-blue-500">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Notes</label>
+                    <input type="text" id="orderNotesInput" placeholder="Standard delivery" class="w-full text-xs border border-slate-200 rounded-lg p-2.5 focus:outline-none focus:border-blue-500">
+                </div>
+                <div class="pt-3 border-t border-slate-100 flex justify-end space-x-2">
+                    <button type="button" onclick="closeModal('orderModal')" class="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
+                    <button type="submit" class="px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm">Confirm & Commit Order</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: TRANSFER STOCK -->
+    <div id="transferModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200">
+            <div class="flex justify-between items-center mb-4 pb-3 border-b border-slate-100">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-arrow-right-arrow-left text-slate-800 text-lg"></i>
+                    <h3 class="font-bold text-slate-900">Inter-Warehouse Stock Transfer</h3>
+                </div>
+                <button onclick="closeModal('transferModal')" class="text-slate-400 hover:text-slate-600 text-lg">&times;</button>
+            </div>
+            <form id="transferForm" onsubmit="submitTransfer(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Product</label>
+                    <select id="transferProductSelect" required class="w-full text-xs border border-slate-200 rounded-lg p-2.5 bg-white"></select>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Source Warehouse</label>
+                        <select id="transferFromWhSelect" required class="w-full text-xs border border-slate-200 rounded-lg p-2.5 bg-white"></select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Destination Warehouse</label>
+                        <select id="transferToWhSelect" required class="w-full text-xs border border-slate-200 rounded-lg p-2.5 bg-white"></select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Quantity to Transfer</label>
+                    <input type="number" id="transferQuantityInput" min="1" value="5" required class="w-full text-xs border border-slate-200 rounded-lg p-2.5">
+                </div>
+                <div class="pt-3 border-t border-slate-100 flex justify-end space-x-2">
+                    <button type="button" onclick="closeModal('transferModal')" class="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
+                    <button type="submit" class="px-4 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-black rounded-lg shadow-sm">Execute Transfer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: RESTOCK -->
+    <div id="restockModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200">
+            <div class="flex justify-between items-center mb-4 pb-3 border-b border-slate-100">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-dolly text-emerald-600 text-lg"></i>
+                    <h3 class="font-bold text-slate-900">Restock Product Inventory</h3>
+                </div>
+                <button onclick="closeModal('restockModal')" class="text-slate-400 hover:text-slate-600 text-lg">&times;</button>
+            </div>
+            <form id="restockForm" onsubmit="submitRestock(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Product</label>
+                    <select id="restockProductSelect" required class="w-full text-xs border border-slate-200 rounded-lg p-2.5 bg-white"></select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Receiving Warehouse</label>
+                    <select id="restockWarehouseSelect" required class="w-full text-xs border border-slate-200 rounded-lg p-2.5 bg-white"></select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Quantity Received</label>
+                    <input type="number" id="restockQuantityInput" min="1" value="25" required class="w-full text-xs border border-slate-200 rounded-lg p-2.5">
+                </div>
+                <div class="pt-3 border-t border-slate-100 flex justify-end space-x-2">
+                    <button type="button" onclick="closeModal('restockModal')" class="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
+                    <button type="submit" class="px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm">Receive & Add Stock</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Frontend Application Logic -->
+    <script>
+        let cachedProducts = [];
+        let cachedWarehouses = [];
+        let cachedCustomers = [];
+        let categoryChartInstance = null;
+        let warehouseChartInstance = null;
+
+        const VIVA_PRESET_QUERIES = {
+            1: `SELECT 
+    o.order_number, c.full_name AS customer, p.product_name, w.warehouse_name, oi.quantity, oi.unit_price, oi.subtotal
+FROM orders o
+INNER JOIN customers c ON o.customer_id = c.customer_id
+INNER JOIN order_items oi ON o.order_id = oi.order_id
+INNER JOIN products p ON oi.product_id = p.product_id
+INNER JOIN warehouses w ON oi.warehouse_id = w.warehouse_id
+ORDER BY o.order_date DESC;`,
+
+            2: `SELECT 
+    p.product_id, p.sku, p.product_name, c.category_name, p.unit_price
+FROM products p
+LEFT JOIN order_items oi ON p.product_id = oi.product_id
+JOIN categories c ON p.category_id = c.category_id
+WHERE oi.order_item_id IS NULL;`,
+
+            3: `SELECT 
+    p1.product_id, p1.sku, p1.product_name, p1.category_id, p1.unit_price
+FROM products p1
+WHERE p1.unit_price > (
+    SELECT AVG(p2.unit_price)
+    FROM products p2
+    WHERE p2.category_id = p1.category_id
+);`,
+
+            4: `SELECT 
+    s.supplier_id, s.company_name, s.city,
+    COUNT(p.product_id) AS total_products,
+    ROUND(AVG(p.unit_price), 2) AS avg_product_price
+FROM suppliers s
+JOIN products p ON s.supplier_id = p.supplier_id
+GROUP BY s.supplier_id, s.company_name, s.city
+HAVING AVG(p.unit_price) > 20000;`,
+
+            5: `SELECT * FROM vw_low_stock_alerts;`,
+            6: `SELECT * FROM vw_inventory_valuation;`,
+            7: `SELECT 
+    w.warehouse_id, w.warehouse_name, w.location_city
+FROM warehouses w
+WHERE EXISTS (
+    SELECT 1 FROM inventory i WHERE i.warehouse_id = w.warehouse_id AND i.quantity_on_hand = 0
+);`,
+            8: `SELECT * FROM vw_customer_order_summary;`
+        };
+
+        // Tab Switching
+        function switchTab(tabId) {
+            ['dashboard', 'inventory', 'orders', 'audits', 'viva', 'concepts'].forEach(t => {
+                document.getElementById(`tab-${t}`).classList.add('hidden');
+                document.getElementById(`tab-${t}-btn`).classList.remove('active');
+            });
+            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+            document.getElementById(`tab-${tabId}-btn`).classList.add('active');
+
+            if (tabId === 'inventory') loadInventory();
+            if (tabId === 'orders') loadOrders();
+            if (tabId === 'audits') loadAudits();
+        }
+
+        // Modal Controls
+        function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+        // Initial Data Fetch
+        async function fetchInitialData() {
+            try {
+                const [dashRes, prodRes, whRes, custRes] = await Promise.all([
+                    fetch('/api/dashboard/stats').then(r => r.json()),
+                    fetch('/api/products').then(r => r.json()),
+                    fetch('/api/warehouses').then(r => r.json()),
+                    fetch('/api/customers').then(r => r.json())
+                ]);
+
+                cachedProducts = prodRes.products || [];
+                cachedWarehouses = whRes.warehouses || [];
+                cachedCustomers = custRes.customers || [];
+
+                populateDropdowns();
+                renderDashboard(dashRes);
+                loadRecentOrdersPreview();
+            } catch (err) {
+                console.error("Failed to load initial data", err);
+            }
+        }
+
+        function populateDropdowns() {
+            // Customer Dropdown
+            const custSelect = document.getElementById('orderCustomerSelect');
+            custSelect.innerHTML = cachedCustomers.map(c => `<option value="${c.customer_id}">${c.full_name} (${c.city} - ${c.customer_type})</option>`).join('');
+
+            // Product Dropdowns
+            const prodOptions = cachedProducts.map(p => `<option value="${p.product_id}">${p.sku} - ${p.product_name} (₹${p.unit_price})</option>`).join('');
+            document.getElementById('orderProductSelect').innerHTML = prodOptions;
+            document.getElementById('transferProductSelect').innerHTML = prodOptions;
+            document.getElementById('restockProductSelect').innerHTML = prodOptions;
+
+            // Warehouse Dropdowns
+            const whOptions = cachedWarehouses.map(w => `<option value="${w.warehouse_id}">${w.warehouse_name} (${w.location_city})</option>`).join('');
+            document.getElementById('orderWarehouseSelect').innerHTML = whOptions;
+            document.getElementById('transferFromWhSelect').innerHTML = whOptions;
+            document.getElementById('transferToWhSelect').innerHTML = whOptions;
+            document.getElementById('restockWarehouseSelect').innerHTML = whOptions;
+
+            // Filter Dropdowns
+            document.getElementById('invWarehouseFilter').innerHTML = '<option value="">All Warehouses</option>' + whOptions;
+        }
+
+        function renderDashboard(data) {
+            document.getElementById('statProducts').innerText = data.total_products;
+            document.getElementById('statUnits').innerText = data.total_units.toLocaleString();
+            document.getElementById('statValuation').innerText = '₹' + data.total_retail_value.toLocaleString();
+            document.getElementById('statCostVal').innerText = data.total_cost_value.toLocaleString();
+            document.getElementById('statLowStock').innerText = data.low_stock_count;
+            document.getElementById('statWarehouses').innerText = data.total_warehouses;
+
+            if (data.low_stock_count > 0) {
+                document.getElementById('lowStockBanner').classList.remove('hidden');
+                document.getElementById('lowStockAlertDesc').innerText = `${data.low_stock_count} product warehouse locations require replenishment.`;
+            }
+
+            // Category Chart
+            if (categoryChartInstance) categoryChartInstance.destroy();
+            const catCtx = document.getElementById('categoryChart').getContext('2d');
+            categoryChartInstance = new Chart(catCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: data.category_stock.map(c => c.category_name),
+                    datasets: [{
+                        data: data.category_stock.map(c => c.total_stock),
+                        backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899']
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+
+            // Warehouse Chart
+            if (warehouseChartInstance) warehouseChartInstance.destroy();
+            const whCtx = document.getElementById('warehouseChart').getContext('2d');
+            warehouseChartInstance = new Chart(whCtx, {
+                type: 'bar',
+                data: {
+                    labels: data.warehouse_stock.map(w => w.location_city),
+                    datasets: [{
+                        label: 'Stock Quantity',
+                        data: data.warehouse_stock.map(w => w.total_stock),
+                        backgroundColor: '#2563eb',
+                        borderRadius: 6
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+        async function loadRecentOrdersPreview() {
+            const res = await fetch('/api/orders').then(r => r.json());
+            const orders = (res.orders || []).slice(0, 5);
+            const tbody = document.getElementById('dashboardOrdersTable');
+            tbody.innerHTML = orders.map(o => `
+                <tr class="hover:bg-slate-50">
+                    <td class="px-4 py-3 font-semibold text-blue-600">${o.order_number}</td>
+                    <td class="px-4 py-3 font-medium">${o.customer_name}</td>
+                    <td class="px-4 py-3 text-slate-500">${o.customer_city}</td>
+                    <td class="px-4 py-3 font-bold">₹${o.total_amount.toLocaleString()}</td>
+                    <td class="px-4 py-3">
+                        <span class="px-2 py-0.5 rounded text-[11px] font-semibold ${o.status === 'Delivered' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}">
+                            ${o.status}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3 font-mono text-[11px] text-slate-500">${o.tracking_number || 'Preparing'}</td>
+                </tr>
+            `).join('');
+        }
+
+        // Inventory Loading
+        async function loadInventory() {
+            const wh = document.getElementById('invWarehouseFilter').value;
+            const search = document.getElementById('invSearchInput').value;
+            const res = await fetch(`/api/inventory?warehouse_id=${wh}&search=${encodeURIComponent(search)}`).then(r => r.json());
+            
+            const tbody = document.getElementById('inventoryTableBody');
+            tbody.innerHTML = res.inventory.map(item => {
+                let badgeClass = 'bg-emerald-100 text-emerald-700';
+                if (item.stock_status === 'OUT_OF_STOCK') badgeClass = 'bg-rose-100 text-rose-700 font-bold';
+                else if (item.stock_status === 'CRITICAL' || item.stock_status === 'LOW_STOCK') badgeClass = 'bg-amber-100 text-amber-800 font-semibold';
+
+                return `
+                    <tr class="hover:bg-slate-50">
+                        <td class="px-4 py-3 font-mono text-slate-600">${item.sku}</td>
+                        <td class="px-4 py-3 font-medium text-slate-900">${item.product_name}</td>
+                        <td class="px-4 py-3 text-slate-500">${item.category_name}</td>
+                        <td class="px-4 py-3 text-slate-600 font-semibold">${item.location_city}</td>
+                        <td class="px-4 py-3 font-bold text-slate-900">${item.quantity_on_hand}</td>
+                        <td class="px-4 py-3 text-slate-500">${item.reorder_level}</td>
+                        <td class="px-4 py-3 font-medium">₹${item.unit_price.toLocaleString()}</td>
+                        <td class="px-4 py-3">
+                            <span class="px-2 py-0.5 rounded text-[11px] ${badgeClass}">${item.stock_status}</span>
+                        </td>
+                        <td class="px-4 py-3">
+                            <button onclick="quickRestock(${item.product_id}, ${item.warehouse_id})" class="text-[11px] text-emerald-600 hover:underline font-semibold">
+                                + Restock
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function quickRestock(prodId, whId) {
+            document.getElementById('restockProductSelect').value = prodId;
+            document.getElementById('restockWarehouseSelect').value = whId;
+            openModal('restockModal');
+        }
+
+        // Orders Loading
+        async function loadOrders() {
+            const res = await fetch('/api/orders').then(r => r.json());
+            const tbody = document.getElementById('ordersTableBody');
+            tbody.innerHTML = (res.orders || []).map(o => `
+                <tr class="hover:bg-slate-50">
+                    <td class="px-4 py-3 font-semibold text-blue-600">${o.order_number}</td>
+                    <td class="px-4 py-3">${o.customer_name} (${o.customer_city})</td>
+                    <td class="px-4 py-3 text-slate-500">${o.order_date}</td>
+                    <td class="px-4 py-3">${o.items_count}</td>
+                    <td class="px-4 py-3 font-bold">₹${o.total_amount.toLocaleString()}</td>
+                    <td class="px-4 py-3">
+                        <span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-100 text-blue-700">${o.status}</span>
+                    </td>
+                    <td class="px-4 py-3 text-emerald-600 font-semibold">${o.payment_status}</td>
+                    <td class="px-4 py-3 font-mono text-slate-500">${o.tracking_number || 'Dispatch Pending'}</td>
+                </tr>
+            `).join('');
+        }
+
+        // Audits Loading
+        async function loadAudits() {
+            const res = await fetch('/api/audit-logs').then(r => r.json());
+            const tbody = document.getElementById('auditLogsTableBody');
+            tbody.innerHTML = (res.audit_logs || []).map(a => `
+                <tr class="hover:bg-slate-50">
+                    <td class="px-4 py-2 font-bold text-slate-500">#${a.log_id}</td>
+                    <td class="px-4 py-2 text-slate-500">${a.timestamp}</td>
+                    <td class="px-4 py-2 font-sans font-medium">${a.product_name}</td>
+                    <td class="px-4 py-2 font-sans text-slate-600">${a.location_city}</td>
+                    <td class="px-4 py-2">
+                        <span class="px-2 py-0.5 rounded text-[11px] font-semibold ${a.change_type === 'ORDER_DEDUCT' ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}">
+                            ${a.change_type}
+                        </span>
+                    </td>
+                    <td class="px-4 py-2">${a.old_quantity}</td>
+                    <td class="px-4 py-2 font-bold">${a.new_quantity}</td>
+                    <td class="px-4 py-2 ${a.change_amount < 0 ? 'text-rose-600' : 'text-emerald-600'} font-bold">
+                        ${a.change_amount > 0 ? '+' : ''}${a.change_amount}
+                    </td>
+                    <td class="px-4 py-2 text-slate-400">${a.changed_by}</td>
+                </tr>
+            `).join('');
+        }
+
+        // Order Submission
+        async function submitOrder(e) {
+            e.preventDefault();
+            const payload = {
+                customer_id: parseInt(document.getElementById('orderCustomerSelect').value),
+                product_id: parseInt(document.getElementById('orderProductSelect').value),
+                warehouse_id: parseInt(document.getElementById('orderWarehouseSelect').value),
+                quantity: parseInt(document.getElementById('orderQuantityInput').value),
+                notes: document.getElementById('orderNotesInput').value
+            };
+
+            const res = await fetch('/api/orders', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            }).then(r => r.json());
+
+            if (res.success) {
+                alert(`Transaction Committed Successfully!\nOrder Number: ${res.order_number}\nTotal with 18% GST: ₹${res.total_amount}`);
+                closeModal('orderModal');
+                fetchInitialData();
+            } else {
+                alert(`ACID Transaction Rolled Back:\n${res.error}`);
+            }
+        }
+
+        // Transfer Submission
+        async function submitTransfer(e) {
+            e.preventDefault();
+            const payload = {
+                product_id: parseInt(document.getElementById('transferProductSelect').value),
+                from_warehouse_id: parseInt(document.getElementById('transferFromWhSelect').value),
+                to_warehouse_id: parseInt(document.getElementById('transferToWhSelect').value),
+                quantity: parseInt(document.getElementById('transferQuantityInput').value)
+            };
+
+            const res = await fetch('/api/transfers', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            }).then(r => r.json());
+
+            if (res.success) {
+                alert(res.message);
+                closeModal('transferModal');
+                fetchInitialData();
+            } else {
+                alert(`Error: ${res.error}`);
+            }
+        }
+
+        // Restock Submission
+        async function submitRestock(e) {
+            e.preventDefault();
+            const payload = {
+                product_id: parseInt(document.getElementById('restockProductSelect').value),
+                warehouse_id: parseInt(document.getElementById('restockWarehouseSelect').value),
+                quantity: parseInt(document.getElementById('restockQuantityInput').value)
+            };
+
+            const res = await fetch('/api/restock', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            }).then(r => r.json());
+
+            if (res.success) {
+                alert(res.message);
+                closeModal('restockModal');
+                fetchInitialData();
+            } else {
+                alert(`Error: ${res.error}`);
+            }
+        }
+
+        // Viva Sandbox Logic
+        function setVivaQuery(index) {
+            const query = VIVA_PRESET_QUERIES[index];
+            document.getElementById('sqlQueryInput').value = query;
+            runCustomQuery();
+        }
+
+        async function runCustomQuery() {
+            const query = document.getElementById('sqlQueryInput').value.trim();
+            const statusDiv = document.getElementById('queryStatusNotice');
+            statusDiv.innerText = "Executing query against engine...";
+
+            try {
+                const res = await fetch('/api/viva/query', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query })
+                }).then(r => r.json());
+
+                if (res.success) {
+                    statusDiv.innerText = `Query executed successfully in ${res.execution_time_ms} ms.`;
+                    document.getElementById('queryStatsPill').innerText = `${res.row_count} rows (${res.execution_time_ms} ms)`;
+                    
+                    // Render Table Headers
+                    const headerRow = document.getElementById('queryOutputHeader');
+                    headerRow.innerHTML = `<tr>${res.columns.map(c => `<th class="px-4 py-2 border-b border-slate-200">${c}</th>`).join('')}</tr>`;
+
+                    // Render Table Body
+                    const body = document.getElementById('queryOutputBody');
+                    body.innerHTML = res.rows.map(r => `
+                        <tr class="hover:bg-slate-50">
+                            ${res.columns.map(col => `<td class="px-4 py-2 border-b border-slate-100">${r[col] !== null ? r[col] : '<span class="text-slate-300">NULL</span>'}</td>`).join('')}
+                        </tr>
+                    `).join('');
+
+                    document.getElementById('queryOutputContainer').classList.remove('hidden');
+                } else {
+                    statusDiv.innerText = `Error: ${res.error}`;
+                    document.getElementById('queryOutputContainer').classList.add('hidden');
+                }
+            } catch (err) {
+                statusDiv.innerText = `Network or Server Error: ${err.message}`;
+            }
+        }
+
+        // Run on load
+        window.onload = fetchInitialData;
+    </script>
+</body>
+</html>
